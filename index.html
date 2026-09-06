@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Project AEON - Flawless Edition</title>
+    <style>
+        :root {
+            --bg-dark: #080c11;
+            --cube-face: #121820;
+            --cube-border: #05080a;
+            --neon-blue: #00e5ff;
+            --neon-purple: #c800ff;
+            --neon-red: #ff2a00;
+            --neon-green: #39ff14;
+            --text-muted: #4a5c70;
+        }
+
+        body {
+            margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace;
+            background: radial-gradient(circle at 50% 50%, #101621 0%, var(--bg-dark) 100%);
+            color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            height: 100vh; overflow: hidden; user-select: none; touch-action: none;
+            transition: background 0.3s;
+        }
+
+        /* --- UI OVERLAYS --- */
+        .screen { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; position: absolute; top:0; left:0; z-index: 5000; background: rgba(8, 12, 17, 0.95); backdrop-filter: blur(8px); }
+        .screen.active { display: flex; }
+        
+        .start-wrapper { display: flex; flex-direction: column; align-items: center; transform: rotate(-3deg) scale(1.15); transition: 0.3s; }
+        .title { color: var(--neon-blue); font-size: 38px; letter-spacing: 8px; text-transform: uppercase; text-shadow: 0 0 20px rgba(0,229,255,0.5); text-align: center; margin-bottom: 10px; font-weight: 900;}
+        .subtitle { color: var(--text-muted); font-size: 16px; letter-spacing: 4px; margin-bottom: 40px; }
+        .avatar-img { width: 110px; height: 110px; border: 3px solid var(--neon-blue); margin-bottom: 40px; border-radius: 10px; box-shadow: 0 0 25px rgba(0,229,255,0.4), inset 0 0 15px rgba(0,229,255,0.4); background: #000; object-fit: contain; padding: 10px; box-sizing: border-box;}
+        
+        .btn-start, .btn { background: rgba(0, 229, 255, 0.05); color: var(--neon-blue); border: 2px solid var(--neon-blue); padding: 15px 40px; font-family: inherit; font-size: 22px; font-weight: bold; text-transform: uppercase; letter-spacing: 4px; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px rgba(0,229,255,0.3), inset 0 0 15px rgba(0,229,255,0.2); border-radius: 4px;}
+        .btn-start:active { background: var(--neon-blue); color: #000; box-shadow: 0 0 30px var(--neon-blue); transform: scale(0.95);}
+        .btn { padding: 12px 25px; font-size: 14px; letter-spacing: 2px; color: var(--neon-green); border-color: var(--neon-green); box-shadow: inset 0 0 10px rgba(57,255,20,0.1); margin: 10px; }
+        .btn-red { color: var(--neon-red); border-color: var(--neon-red); box-shadow: inset 0 0 10px rgba(255,42,0,0.1); }
+        .btn-red:active { background: var(--neon-red); color: #000; }
+
+        #notify { position: absolute; top: 10%; background: rgba(0, 229, 255, 0.1); color: var(--neon-blue); border: 1px solid var(--neon-blue); padding: 12px 20px; font-weight: bold; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 9999; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 0 15px rgba(0,229,255,0.3); backdrop-filter: blur(4px);}
+        #notify.err { color: var(--neon-red); border-color: var(--neon-red); background: rgba(255,42,0,0.1); box-shadow: 0 0 15px rgba(255,42,0,0.3); }
+
+        /* --- SCANNER UI (Left) --- */
+        #scanner-ui { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 1000; opacity: 0; transition: 0.5s; pointer-events: none;}
+        .scan-btn { width: 50px; height: 50px; border: 2px solid #333; background: #0a0e13; color: #555; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.3s; }
+        .scan-btn.active.vis { border-color: #fff; color: #fff; box-shadow: 0 0 15px #fff; }
+        .scan-btn.active.uv { border-color: var(--neon-purple); color: var(--neon-purple); box-shadow: 0 0 15px var(--neon-purple); text-shadow: 0 0 5px var(--neon-purple);}
+        .scan-btn.active.ir { border-color: var(--neon-red); color: var(--neon-red); box-shadow: 0 0 15px var(--neon-red); text-shadow: 0 0 5px var(--neon-red);}
+        .scan-btn.disabled { opacity: 0.4; border-style: dashed; border-color: #444; color: #444; }
+
+        /* --- INVENTORY & DATAPAD UI (Right) --- */
+        #right-ui { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
+        .inv-hint { font-size: 9px; color: var(--neon-blue); text-align: center; letter-spacing: 1px; margin-bottom: 5px; opacity: 0.8;}
+        .inv-slot { width: 50px; height: 50px; border: 1px solid #333; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; font-size: 24px; cursor: pointer; transition: 0.2s; border-radius: 4px; position: relative;}
+        .inv-slot.active { border-color: var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue); background: rgba(0,229,255,0.1); transform: scale(1.1); z-index: 10;}
+        .inv-slot.sys-btn { border-color: var(--neon-green); color: var(--neon-green); font-size: 12px; font-weight: bold; flex-direction: column; transition: 0.5s; box-shadow: 0 0 15px rgba(57,255,20,0.2); animation: pulse 2s infinite;}
+        .inv-slot.sys-btn svg { width: 24px; height: 24px; fill: var(--neon-green); margin-bottom: 2px;}
+        @keyframes pulse { 0% { box-shadow: 0 0 5px rgba(57,255,20,0.2); } 50% { box-shadow: 0 0 20px rgba(57,255,20,0.6); } 100% { box-shadow: 0 0 5px rgba(57,255,20,0.2); } }
+
+        /* --- DATAPAD MODAL --- */
+        #datapad-modal { display: none; position: absolute; inset: 0; z-index: 4000; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
+        .datapad-content { width: 90%; max-width: 450px; height: 85vh; background: #0c1219; border: 1px solid var(--neon-green); box-shadow: 0 0 30px rgba(57,255,20,0.1); display: flex; flex-direction: column; position: relative;}
+        .dp-header { border-bottom: 1px solid var(--neon-green); padding: 15px; color: var(--neon-green); font-weight: bold; text-align: center; letter-spacing: 3px; font-size: 18px; display: flex; justify-content: space-between;}
+        .dp-close { cursor: pointer; color: var(--neon-red); }
+        .dp-body { padding: 20px; overflow-y: auto; color: #88a0b8; font-size: 13px; line-height: 1.6; }
+        .dp-h { color: #fff; border-bottom: 1px dashed #334; padding-bottom: 5px; margin-top: 20px; margin-bottom: 10px; font-size: 14px;}
+        .dp-alert { color: var(--neon-red); border-left: 2px solid var(--neon-red); padding-left: 10px; margin: 10px 0; font-style: italic;}
+        
+        .console-input { background: #000; color: var(--neon-green); border: 1px solid #333; padding: 10px; font-family: inherit; font-size: 16px; width: 120px; text-align: center; letter-spacing: 4px; outline: none;}
+        .console-btn { background: #111; color: var(--neon-green); border: 1px solid var(--neon-green); padding: 10px 15px; cursor: pointer; font-family: inherit; font-weight: bold;}
+
+        /* --- 3D ITEM INSPECT MODAL --- */
+        #inspect-modal { display: none; position: absolute; inset: 0; z-index: 4500; background: rgba(0,0,0,0.95); justify-content: center; align-items: center; flex-direction: column;}
+        .inspect-title { color: var(--neon-blue); font-size: 20px; letter-spacing: 3px; margin-bottom: 50px; text-shadow: 0 0 10px var(--neon-blue); text-transform: uppercase;}
+        #inspect-scene { width: 120px; height: 120px; perspective: 800px; margin: 0 auto; }
+        #inspect-obj { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transform: rotateX(-15deg) rotateY(0deg); transition: transform 0.1s linear;}
+        .obj-face { position: absolute; width: 120px; height: 120px; background: #111; border: 2px solid #333; display: flex; justify-content: center; align-items: center; backface-visibility: hidden; box-shadow: inset 0 0 20px #000;}
+        .obj-front { transform: translateZ(60px); font-size: 50px;}
+        .obj-back { transform: rotateY(180deg) translateZ(60px); background: #0a0a0a; flex-direction: column; padding: 10px; box-sizing: border-box;}
+        .obj-left { transform: rotateY(-90deg) translateZ(60px); }
+        .obj-right { transform: rotateY(90deg) translateZ(60px); }
+        .obj-top { transform: rotateX(90deg) translateZ(60px); }
+        .obj-bottom { transform: rotateX(-90deg) translateZ(60px); }
+        .diode-part { width: 35px; height: 35px; background: #000; border: 2px solid var(--neon-purple); border-radius: 50%; box-shadow: 0 0 15px var(--neon-purple); cursor: pointer; font-size: 16px; display: flex; justify-content: center; align-items: center; transition: 0.2s;}
+        .diode-part:active { transform: scale(0.9); }
+
+        /* SPECTRUM STYLES */
+        body.vis-mode .uv-hide, body.vis-mode .ir-hide { opacity: 0 !important; pointer-events: none !important; }
+        body.uv-mode { background: radial-gradient(circle at 50% 50%, #190c29 0%, #05020a 100%); }
+        body.uv-mode .face { border-color: #311b4d; box-shadow: inset 0 0 50px rgba(200,0,255,0.1); }
+        body.uv-mode .uv-text { color: var(--neon-purple); text-shadow: 0 0 10px var(--neon-purple); opacity: 1 !important; transition: 0.5s; font-family: monospace; font-weight: bold;}
+        body.uv-mode .ir-hide { opacity: 0 !important; pointer-events: none !important; }
+        body.uv-mode .vis-dim { opacity: 0.2; }
+        body.ir-mode { background: radial-gradient(circle at 50% 50%, #290c0c 0%, #0a0202 100%); }
+        body.ir-mode .face { border-color: #4d1b1b; box-shadow: inset 0 0 50px rgba(255,42,0,0.15); filter: contrast(1.2) grayscale(0.4) sepia(1) hue-rotate(-50deg) saturate(2); }
+        body.ir-mode .uv-hide { opacity: 0 !important; pointer-events: none !important; }
+        body.ir-mode .vis-dim { opacity: 0.1; }
+        body.ir-mode .grid-damaged { background: #ff2a00 !important; box-shadow: 0 0 20px #ff2a00 !important; border-color: #fff !important; opacity: 1 !important;}
+
+        body.ir-mode.oc-active .ir-thermal-clue { opacity: 0 !important; }
+        body.ir-mode.oc-active .ir-overload { opacity: 1 !important; }
+
+        /* --- 3D SCENE --- */
+        #scene { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; perspective: 1200px; z-index: 10; }
+        #cube { width: 220px; height: 220px; position: relative; transform-style: preserve-3d; transform: rotateX(-20deg) rotateY(-30deg); }
+        .face { position: absolute; width: 220px; height: 220px; background: var(--cube-face); border: 2px solid var(--cube-border); box-sizing: border-box; box-shadow: inset 0 0 50px rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; backface-visibility: hidden; transition: 0.5s; }
+        
+        .front  { transform: rotateY(0deg) translateZ(110px); }
+        .back   { transform: rotateY(180deg) translateZ(110px); }
+        .left   { transform: rotateY(-90deg) translateZ(110px); }
+        .right  { transform: rotateY(90deg) translateZ(110px); }
+        .bottom { transform: rotateX(-90deg) translateZ(110px); }
+        .top    { transform: rotateX(90deg) translateZ(110px); }
+        .top.open { transform: rotateX(90deg) translateZ(250px) translateY(-50px); opacity: 0; }
+
+        .stealth { opacity: 0; pointer-events: none; }
+        .interact { cursor: pointer; }
+        
+        /* Grid System */
+        .power-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 10px; background: #05070a; border: 1px solid #223; border-radius: 4px; box-shadow: inset 0 0 20px #000; position: relative; margin-top: -15px;}
+        .node { width: 26px; height: 26px; background: #111; border: 1px solid #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; transition: 0.3s; position: relative;}
+        .node.active { background: var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue); border-color: #fff; }
+        .node.source { border-color: var(--neon-green) !important; box-shadow: inset 0 0 10px var(--neon-green); }
+        .node.target { border-color: var(--neon-red) !important; box-shadow: inset 0 0 10px var(--neon-red); }
+        
+        /* Radial Keypad */
+        .circle-pad { position: relative; width: 140px; height: 140px; margin-top: 15px; }
+        .c-btn { position: absolute; width: 40px; height: 40px; background: linear-gradient(180deg, #2a3542 0%, #141b24 100%); border: 2px solid #000; border-radius: 50%; box-shadow: 0 4px 0 #000; display: flex; justify-content: center; align-items: center; transition: 0.1s; font-size: 16px; font-weight: bold;}
+        .c-btn:active, .c-btn.pressed { transform: translateY(4px) scale(0.95); box-shadow: 0 0 0 #000; background: #111; border-color: var(--neon-blue); }
+        
+        /* Rotary Dials */
+        .dials-container { display: flex; gap: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; border: 1px solid #222; }
+        .dial-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .dial { width: 45px; height: 45px; border-radius: 50%; background: radial-gradient(circle, #333, #111); border: 2px solid #555; position: relative; box-shadow: 0 4px 5px #000, inset 0 0 10px #000; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .dial-indicator { width: 4px; height: 15px; background: var(--neon-blue); position: absolute; top: 2px; left: 50%; transform: translateX(-50%); border-radius: 2px; box-shadow: 0 0 5px var(--neon-blue);}
+        .dial-label { font-size: 10px; color: #777; letter-spacing: 1px; }
+
+        /* Cipher Rings */
+        .ring-container { display: flex; gap: 8px; background: #000; padding: 15px; border: 2px solid #333; border-radius: 5px; position: relative; z-index: 10;}
+        .ring { width: 35px; height: 50px; background: linear-gradient(180deg, #111 0%, #333 50%, #111 100%); border: 1px solid #555; display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: bold; color: #ddd; box-shadow: inset 0 0 10px #000; border-radius: 3px; }
+        .glass-cover { position: absolute; width: 100%; height: 100%; background: rgba(0, 229, 255, 0.05); border: 2px solid rgba(0, 229, 255, 0.2); backdrop-filter: blur(3px); z-index: 30; display: flex; justify-content: center; align-items: center; transition: 1s; }
+        .glass-cover.cut { opacity: 0; pointer-events: none; transform: scale(1.1); }
+        .laser-burn { position: absolute; width: 0; height: 2px; background: var(--neon-red); box-shadow: 0 0 15px var(--neon-red); top: 50%; left: 0; transition: width 2s linear; }
+
+        /* Drawers & Loot */
+        .drawer { position: absolute; width: 50px; height: 50px; background: #080b0f; border: 1px solid #222; display: flex; justify-content: center; align-items: center; box-shadow: inset 0 0 20px #000; transition: transform 0.5s; z-index: 5;}
+        .drawer.open { transform: translateZ(15px); border-color: var(--text-muted); box-shadow: -5px 5px 15px rgba(0,0,0,0.8); z-index: 40; }
+        .loot { font-size: 28px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); transition: 0.3s; }
+        .loot:hover { transform: scale(1.15); filter: drop-shadow(0 0 10px rgba(255,255,255,0.8));}
+
+        /* Power Plugs & Mag Panel */
+        .panel-cover { position: absolute; width: 85%; height: 85%; background: linear-gradient(135deg, #1c2533 0%, #10151c 100%); border: 2px solid #000; z-index: 20; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: 0.8s ease-in; }
+        .panel-cover.removed { transform: translateY(300px) rotateX(45deg); opacity: 0; pointer-events: none; }
+        .mag-lock { position: absolute; width: 14px; height: 14px; background: #111; border-radius: 50%; border: 2px solid var(--neon-blue); box-shadow: inset 0 0 5px var(--neon-blue); }
+        .mag-lock.tl { top: 12px; left: 12px; } .mag-lock.tr { top: 12px; right: 12px; }
+        .mag-lock.bl { bottom: 12px; left: 12px; } .mag-lock.br { bottom: 12px; right: 12px; }
+
+        /* AEON Logo Glow */
+        .aeon-text { font-size:40px; color:#1a2533; font-weight:bold; letter-spacing:4px; transition: 0.5s; }
+        .aeon-text.glow { color: var(--neon-blue); text-shadow: 0 0 20px var(--neon-blue); }
+
+        /* Overclock Switch */
+        .oc-switch { position: absolute; bottom: 20px; left: 20px; width: 40px; height: 70px; background: #050505; border: 2px solid #333; border-radius: 4px; display: flex; justify-content: center; padding: 5px 0;}
+        .oc-toggle { width: 30px; height: 30px; background: #444; border: 2px solid #222; border-radius: 2px; transition: 0.3s; transform: translateY(30px); box-shadow: 0 -3px 5px #000;}
+        .oc-active .oc-toggle { transform: translateY(0); background: var(--neon-red); border-color: #fff; box-shadow: 0 3px 5px #000, 0 0 15px var(--neon-red);}
+        .oc-label { position: absolute; bottom: -20px; font-size: 10px; color: #555; font-weight: bold; letter-spacing: 1px;}
+
+        /* Emitter Tube */
+        .tube { position: absolute; bottom: 10px; right: 10px; width: 50px; height: 50px; border: 2px solid #333; border-radius: 5px; display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.8); z-index: 5;}
+        .tube-glass { position: absolute; inset: 0; background: rgba(0, 229, 255, 0.1); backdrop-filter: blur(2px); border: 1px solid rgba(0, 229, 255, 0.3); transition: 0.5s; z-index: 10;}
+        .tube-glass.open { transform: translateY(-40px); opacity: 0; pointer-events: none;}
+
+        /* Final Core */
+        .core-display { position: absolute; width: 160px; height: 160px; background: #000; border: 2px solid var(--neon-green); box-shadow: 0 0 30px rgba(57,255,20,0.2), inset 0 0 40px rgba(57,255,20,0.1); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 0; opacity: 0; transition: 2s; pointer-events: none;}
+        .core-text { color: var(--neon-green); font-size: 14px; font-weight: bold; letter-spacing: 2px; text-shadow: 0 0 10px var(--neon-green); margin: 5px 0;}
+    </style>
+</head>
+<body class="vis-mode">
+
+    <!-- START SCREEN -->
+    <div id="start-screen" class="screen active">
+        <div class="start-wrapper">
+            <h1 class="title">PROJECT:<br>AEON</h1>
+            <div class="subtitle">System Status: OFFLINE</div>
+            <img src="Avatar.jpg" alt="Avatar" class="avatar-img">
+            <button class="btn-start interact" id="start-btn" onclick="startGame()">START</button>
+            <button class="btn btn-red interact" id="reset-btn" style="display:none; margin-top: 20px;" onclick="resetGame()">FACTORY RESET</button>
+        </div>
+    </div>
+
+    <!-- FINAL SCREEN -->
+    <div id="final-screen" class="screen">
+        <h1 class="title" style="color:var(--neon-green); text-shadow: 0 0 20px rgba(57,255,20,0.4);">CORE DECRYPTED</h1>
+        <div style="background: rgba(0,0,0,0.8); border: 1px solid var(--neon-green); padding: 30px; text-align: center; max-width: 90%; border-radius: 4px;">
+            <p style="color: #ccc; font-size: 14px; margin-bottom: 20px; letter-spacing: 1px;">Geheimdaten extrahiert:</p>
+            <div id="final-coords" style="font-size: 20px; color: var(--neon-green); font-weight: bold; letter-spacing: 2px; background: #050505; padding: 15px; border: 1px dashed var(--neon-green);"></div>
+        </div>
+        <button class="btn interact" style="margin-top: 30px;" onclick="document.getElementById('final-screen').classList.remove('active')">INSPECT TERMINAL</button>
+        <button class="btn btn-red interact" style="margin-top: 10px;" onclick="resetGame()">SYSTEM RESET</button>
+    </div>
+
+    <div id="notify"></div>
+
+    <!-- ITEM INSPECT MODAL -->
+    <div id="inspect-modal">
+        <div class="inspect-title" id="inspect-name">INSPEKTION</div>
+        <div id="inspect-scene" class="interact">
+            <div id="inspect-obj">
+                <!-- 3D Faces generiert via JS -->
+            </div>
+        </div>
+        <button class="btn interact" style="margin-top: 50px; border-color:#fff; color:#fff;" onclick="closeInspect()">SCHLIESSEN</button>
+    </div>
+
+    <!-- UI LEFT: SCANNER -->
+    <div id="scanner-ui">
+        <div class="scan-btn active vis interact" onclick="setMode('vis', this)">VIS</div>
+        <!-- UV Button -->
+        <div class="scan-btn uv interact disabled" id="uv-btn" onclick="handleUVClick(this)">UV ⚠️</div>
+        <div class="scan-btn ir interact" onclick="setMode('ir', this)">IR</div>
+    </div>
+
+    <!-- UI RIGHT: INVENTORY -->
+    <div id="right-ui">
+        <div class="inv-slot sys-btn interact" id="btn-manual" onclick="toggleManual()">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            DATA
+        </div>
+        
+        <div class="inv-hint">DOPPELKLICK AUF ITEM<br>FÜR 3D-ANSICHT</div>
+        
+        <div class="inv-slot interact" id="inv-0" onclick="selInv(0)"></div>
+        <div class="inv-slot interact" id="inv-1" onclick="selInv(1)"></div>
+        <div class="inv-slot interact" id="inv-2" onclick="selInv(2)"></div>
+    </div>
+
+    <!-- DATAPAD MODAL -->
+    <div id="datapad-modal">
+        <div class="datapad-content">
+            <div class="dp-header"><span>AEON_OS v7.0</span> <span class="dp-close interact" onclick="toggleManual()">✕</span></div>
+            <div class="dp-body">
+                <div style="text-align:center; margin-bottom: 20px;"><svg width="50" height="50" viewBox="0 0 24 24" fill="var(--neon-green)"><path d="M12 2L2 22h20L12 2zm0 3.8l7.2 14.2H4.8L12 5.8z"/></svg></div>
+                
+                <div class="dp-h">SYS_CONSOLE (LASER)</div>
+                <div style="display:flex; justify-content:center; gap:10px; margin-top:10px;">
+                    <input type="text" id="synth-pin" class="console-input" placeholder="PIN" maxlength="3">
+                    <button class="console-btn interact" onclick="authSynth()">AUTH</button>
+                </div>
+                <div id="synth-status" style="text-align:center; margin-top:5px; font-size:11px; color:#555;">STATUS: GESPERRT</div>
+                <div class="dp-alert">Halte das AEON-Logo gedrückt, um den PIN-Code im UV-Licht aufzuladen.</div>
+
+                <div class="dp-h">1. HARDWARE STATUS</div>
+                - <b>Scanner defekt:</b> Finde eine UV-Diode in einem Item. Wähle sie aus und klicke auf den "UV"-Knopf, um ihn zu reparieren.<br>
+                - <b>3D-Inventar:</b> Klicke ein Item im Inventar <b>erneut</b> an, um es in 3D zu drehen. Untersuche die Rückseiten genau!<br>
+                - <b>OVERCLOCK (O.C.):</b> Überlastet das System, um blockierte Röhren zu öffnen. <span style="color:var(--neon-red);">Achtung: IR-Kameras fallen durch die Hitze aus!</span>
+
+                <div class="dp-h">2. ENERGIE (RÜCKSEITE)</div>
+                - Entferne das Magnetschloss & setze die Sicherung ein.<br>
+                - <span style="color:var(--neon-red);">Achtung: Im IR-Modus siehst du kaputte rote Knoten!</span><br>
+                - Verbinde Grün mit Rot, ohne die defekten Knoten zu berühren.
+                
+                <div class="dp-h">3. ROTATION (RECHTE SEITE)</div>
+                - Nutze die Schablonen-Folie, um den Text zu filtern.<br>
+                - <b>FRQ</b> = AMP - 90°<br>
+                - <b>PHS</b> = FRQ + 180°
+
+                <div class="dp-h">4. MASTER-PIN</div>
+                - <b>Ziffer 1:</b> Die Anzahl der roten, defekten Stromknoten (siehe Warnung auf der Sicherung!).<br>
+                - <b>Ziffer 2:</b> Die Thermale Signatur (IR) am Boden (Overclock muss AUS sein!).<br>
+                - <b>Ziffer 3:</b> Die Summe aller 3 Drehwinkel, verrechnet mit dem Brechungsindex des Kristalls.<br>
+                - <b>Ziffer 4:</b> Versteckt unterm Magnetschloss (Oben).
+            </div>
+        </div>
+    </div>
+
+    <!-- THE CUBE -->
+    <div id="scene">
+        <div id="cube">
+
+            <!-- CORE (Inside) -->
+            <div class="core-display" id="core-display">
+                <div style="font-size:30px; margin-bottom:10px;">🌐</div>
+                <div class="core-text">Musik: 1792</div>
+                <div class="core-text" style="color:var(--neon-blue);">TB: HQZJCG</div>
+            </div>
+
+            <!-- FRONT: Radial Keypad -->
+            <div class="face front" id="face-front">
+                <div class="vis-dim" style="position:absolute; top:15px; font-size:14px; color:#555; letter-spacing:2px; font-weight:bold;">SEQUENCE LOCK</div>
+                
+                <div class="circle-pad" id="radial-keypad">
+                    <div class="c-btn interact" style="top:50px; left:50px; border-color:#444;" onclick="pressRadial(-1)"><span class="uv-hide uv-text stealth" style="font-size:10px;">RST</span></div>
+                    <div class="c-btn interact" style="top:5px; left:50px;" onclick="pressRadial(0)"><span class="uv-hide uv-text stealth">•••</span></div>
+                    <div class="c-btn interact" style="top:27px; left:89px;" onclick="pressRadial(1)"><span class="uv-hide uv-text stealth">•••••</span></div>
+                    <div class="c-btn interact" style="top:72px; left:89px;" onclick="pressRadial(2)"><span class="uv-hide uv-text stealth">•</span></div>
+                    <div class="c-btn interact" style="top:95px; left:50px;" onclick="pressRadial(3)"><span class="uv-hide uv-text stealth">••••••</span></div>
+                    <div class="c-btn interact" style="top:72px; left:11px;" onclick="pressRadial(4)"><span class="uv-hide uv-text stealth">••••</span></div>
+                    <div class="c-btn interact" style="top:27px; left:11px;" onclick="pressRadial(5)"><span class="uv-hide uv-text stealth">••</span></div>
+                </div>
+
+                <div class="drawer interact stealth" id="draw-stencil" style="bottom:10px; right:10px;">
+                    <div class="loot interact" onclick="collect('stencil', '📑', this)">📑</div>
+                </div>
+
+                <div class="tube" id="tube-emitter">
+                    <div class="loot interact" onclick="collect('emitter', '🔦', this)">🔦</div>
+                    <div class="tube-glass" id="tube-glass"></div>
+                </div>
+            </div>
+
+            <!-- BACK: Power Grid & Mag Lock -->
+            <div class="face back" id="face-back">
+                
+                <div class="panel-cover" id="power-cover">
+                    <div class="mag-lock tl"></div><div class="mag-lock tr"></div>
+                    <div class="mag-lock bl"></div><div class="mag-lock br"></div>
+                    
+                    <div class="interact" style="width:50px; height:50px; border:2px solid var(--neon-blue); border-radius:50%; display:flex; justify-content:center; align-items:center; font-size:24px; background:#080c11; box-shadow: 0 0 15px rgba(0,229,255,0.2);" onclick="useTool('magnet', 'power-cover')">🧲</div>
+                    <div style="font-size:10px; color:var(--neon-blue); margin-top:15px; font-weight:bold; letter-spacing:2px;">MAGNETIC SEAL</div>
+                </div>
+
+                <div class="power-grid" id="grid"></div>
+                
+                <div class="port-circle interact" id="fuse-port" style="position:absolute; bottom:10px; right:10px; width:35px; height:35px; border:2px dashed #444; border-radius:4px; font-size:10px; display:flex; justify-content:center; align-items:center; color:#555; font-weight:bold; background:#050505;" onclick="useTool('fuse', 'fuse-port')">FUSE</div>
+            </div>
+
+            <!-- LEFT: Overclock, Logo Hold, Scanner -->
+            <div class="face left" id="face-left">
+                <div class="vis-dim aeon-text interact" id="aeon-logo" style="margin-bottom: 20px;">AEON</div>
+                <div class="uv-hide uv-text stealth" id="aeon-clue" style="font-size: 14px; text-align: center; line-height: 1.5; border: 1px dashed var(--neon-purple); padding: 5px;">SYNTH-PIN:<br>519</div>
+                
+                <div class="drawer interact open" id="draw-scanner" style="top:10px; right:10px; border-color:var(--neon-blue);">
+                    <div class="loot interact" onclick="enableScanner(this)">👁️</div>
+                </div>
+                
+                <div class="oc-switch interact" id="oc-switch-area" onclick="toggleOverclock()">
+                    <div class="oc-toggle" id="oc-knob"></div>
+                    <div class="oc-label">O.C.</div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Rotary Knobs & Stencil Text -->
+            <div class="face right" id="face-right">
+                <div class="vis-dim" style="position:absolute; top:15px; font-size:14px; color:#555; letter-spacing:2px; font-weight:bold;">WAVE TUNING</div>
+                
+                <div id="right-clue" class="interact" style="margin-bottom: 15px; font-size: 14px; color: #4a5c70; letter-spacing: 2px; font-family: monospace; background: #0a0e13; padding: 5px; border: 1px solid #222;" onclick="useTool('stencil', 'right-clue')">A X M 9 P = Q 1 8 J 0 ° Z</div>
+
+                <div class="dials-container">
+                    <div class="dial-wrap"><div class="dial interact" id="dial-0" onclick="turnDial(0)"><div class="dial-indicator"></div></div><div class="dial-label">AMP</div></div>
+                    <div class="dial-wrap"><div class="dial interact" id="dial-1" onclick="turnDial(1)"><div class="dial-indicator"></div></div><div class="dial-label">FRQ</div></div>
+                    <div class="dial-wrap"><div class="dial interact" id="dial-2" onclick="turnDial(2)"><div class="dial-indicator"></div></div><div class="dial-label">PHS</div></div>
+                </div>
+
+                <div class="drawer interact stealth" id="draw-crystal" style="bottom:10px; right:10px;">
+                    <div class="loot interact" onclick="collect('crystal', '💎', this)">💎</div>
+                </div>
+            </div>
+
+            <!-- TOP: Glass Cover & Cipher Rings -->
+            <div class="face top" id="face-top">
+                <div class="glass-cover interact" id="glass" onclick="useTool('laser', 'glass')">
+                    <div class="laser-burn" id="laser-line"></div>
+                    <div style="position:absolute; top:15px; font-size:12px; color:rgba(0,229,255,0.7); letter-spacing:3px; font-weight:bold;">SHIELD ACTIVE</div>
+                </div>
+
+                <div class="ring-container" id="rings">
+                    <div class="ring interact" onclick="turnRing(0)" id="r0">0</div>
+                    <div class="ring interact" onclick="turnRing(1)" id="r1">0</div>
+                    <div class="ring interact" onclick="turnRing(2)" id="r2">0</div>
+                    <div class="ring interact" onclick="turnRing(3)" id="r3">0</div>
+                </div>
+                
+                <div class="vis-dim stealth" id="pin-clue-top" style="position:absolute; bottom:20px; left:15px; font-size: 14px; color: #555; font-weight: bold;">PIN.4: 2</div>
+
+                <div class="loot interact" id="start-tool" style="position:absolute; bottom:15px; left:15px; background:rgba(0,0,0,0.7); padding:8px; border-radius:6px; border:1px solid #444; z-index: 50; box-shadow: 0 4px 10px #000;" onclick="collect('magnet', '🧲', this); document.getElementById('pin-clue-top').classList.remove('stealth');">🧲</div>
+            </div>
+
+            <!-- BOTTOM: Fuse & IR Clues -->
+            <div class="face bottom" id="face-bottom">
+                <div class="drawer interact open" id="draw-fuse" style="top:20px; left:20px; z-index: 40;">
+                    <div class="loot interact" onclick="collect('fuse', '🔌', this)">🔌</div>
+                </div>
+                
+                <div class="ir-hide ir-thermal-clue stealth" style="position:absolute; bottom:20px; right:20px; font-size:30px; font-weight:bold; color:var(--neon-red); text-shadow:0 0 15px var(--neon-red); transition: 0.3s;">VII</div>
+                
+                <div class="ir-hide ir-overload stealth" style="position:absolute; inset: 20px; background: radial-gradient(circle, rgba(255,42,0,0.8) 0%, rgba(0,0,0,0) 70%); border-radius: 50%; opacity: 0; pointer-events: none; transition: 0.3s; display: flex; justify-content: center; align-items: center; color: #fff; font-size: 10px; font-weight: bold;">SENSOR ÜBERLASTET</div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const SECRET_COORDS = "TjUwwrAgMjAuMTAzJyBFMDEywrAgMDMuNzcyJw=="; 
+        
+        let state = { 
+            power: false, radialSolved: false, dialSolved: false, 
+            overclock: false, synthUnlocked: false, aeonUnlocked: false, magnetInspected: false
+        };
+        let inv = []; 
+        let selIdx = -1;
+        let aeonTimer = null;
+
+        window.onload = () => {
+            if(localStorage.getItem('aeon_solved') === 'true') {
+                document.getElementById('reset-btn').style.display = 'block';
+                const startBtn = document.getElementById('start-btn');
+                startBtn.innerText = "ACCESS GRANTED";
+                startBtn.style.color = "var(--neon-green)";
+                startBtn.style.borderColor = "var(--neon-green)";
+                startBtn.style.boxShadow = "0 0 20px var(--neon-green)";
+                startBtn.onclick = () => {
+                    document.getElementById('start-screen').classList.remove('active');
+                    triggerWin(true);
+                };
+            }
+            buildPowerGrid();
+            
+            document.getElementById('btn-manual').addEventListener('click', function() {
+                this.style.animation = 'none';
+            }, {once: true});
+
+            setupAeonHold();
+        };
+
+        function startGame() { document.getElementById('start-screen').classList.remove('active'); }
+
+        function resetGame() {
+            if(confirm("ACHTUNG: Lokaler Speicher wird gelöscht. Spielfortschritt geht verloren. Bestätigen?")) {
+                localStorage.removeItem('aeon_solved');
+                location.reload();
+            }
+        }
+
+        function showMsg(msg, isErr = false) {
+            const n = document.getElementById('notify');
+            n.innerText = msg;
+            n.className = isErr ? 'err' : '';
+            n.style.opacity = 1;
+            setTimeout(() => { n.style.opacity = 0; }, 4000);
+        }
+
+        // --- 3D ROTATION ---
+        const cube = document.getElementById('cube');
+        let isDrag = false, startX, startY, curX = -20, curY = -30, lastMove = 0; 
+        
+        document.addEventListener('pointerdown', (e) => {
+            lastMove = 0; 
+            if(e.target.closest('.interact') || e.target.closest('.btn') || e.target.closest('.btn-start') || e.target.closest('.console-btn') || e.target.closest('.console-input') || e.target.closest('.inv-slot') || e.target.closest('#datapad-modal') || e.target.closest('#scanner-ui') || e.target.closest('#inspect-modal')) return; 
+            isDrag = true; startX = e.clientX; startY = e.clientY; 
+            cube.style.transition = "none";
+        });
+        
+        document.addEventListener('pointermove', (e) => {
+            if(!isDrag) return;
+            let dx = e.clientX - startX, dy = e.clientY - startY;
+            lastMove += Math.abs(dx) + Math.abs(dy);
+            curY += dx * 0.5; curX -= dy * 0.5; 
+            curX = Math.max(-90, Math.min(90, curX)); 
+            cube.style.transform = `rotateX(${curX}deg) rotateY(${curY}deg)`;
+            startX = e.clientX; startY = e.clientY;
+        });
+        
+        document.addEventListener('pointerup', () => { 
+            isDrag = false; 
+            cube.style.transition = "transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)";
+        });
+        document.addEventListener('pointercancel', () => { isDrag = false; });
+        function wasDragged() { return lastMove > 10; }
+
+        // --- AEON HOLD LOGIC ---
+        function setupAeonHold() {
+            const aeon = document.getElementById('aeon-logo');
+            const startTimer = () => {
+                if(wasDragged() || state.aeonUnlocked) return;
+                aeonTimer = setTimeout(() => {
+                    if(!wasDragged()) {
+                        state.aeonUnlocked = true;
+                        aeon.classList.add('glow');
+                        document.getElementById('aeon-clue').classList.remove('stealth');
+                        showMsg("SYSTEMSIEGEL AUFGELADEN");
+                    }
+                }, 2000);
+            };
+            const clearTimer = () => { if(aeonTimer) clearTimeout(aeonTimer); };
+            aeon.addEventListener('pointerdown', startTimer);
+            aeon.addEventListener('pointerup', clearTimer);
+            aeon.addEventListener('pointerleave', clearTimer);
+            aeon.addEventListener('pointercancel', clearTimer);
+        }
+
+        // --- OVERCLOCK SWITCH ---
+        function toggleOverclock() {
+            if(wasDragged() || !state.power) {
+                if(!state.power) showMsg("SYSTEM HAT KEINEN STROM", true);
+                return;
+            }
+            state.overclock = !state.overclock;
+            
+            const sw = document.getElementById('oc-switch-area');
+            if(state.overclock) {
+                sw.classList.add('oc-active');
+                document.body.classList.add('oc-active');
+                document.getElementById('tube-glass').classList.add('open');
+                showMsg("OVERCLOCK AKTIVIERT - HITZE WARNUNG", true);
+            } else {
+                sw.classList.remove('oc-active');
+                document.body.classList.remove('oc-active');
+                document.getElementById('tube-glass').classList.remove('open');
+                showMsg("SYSTEM NORMALISIERT");
+            }
+        }
+
+        // --- SCANNER LOGIC ---
+        function setMode(mode, el) {
+            document.querySelectorAll('.scan-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            document.body.className = mode + '-mode';
+            if(state.overclock) document.body.classList.add('oc-active');
+        }
+
+        function handleUVClick(el) {
+            if(wasDragged()) return;
+            
+            if(el.classList.contains('disabled')) {
+                if(selIdx !== -1 && inv[selIdx].id === 'diode') {
+                    el.classList.remove('disabled');
+                    el.innerText = "UV";
+                    inv.splice(selIdx, 1); selIdx = -1; updateInvUI();
+                    showMsg("UV MODUL REPARIERT");
+                    setMode('uv', el);
+                } else {
+                    showMsg("MODUL DEFEKT - UV-DIODE FEHLT", true);
+                }
+                return;
+            }
+            setMode('uv', el);
+        }
+        
+        function enableScanner(el) {
+            if(wasDragged()) return;
+            el.parentElement.classList.remove('open');
+            setTimeout(() => { el.parentElement.style.display = 'none'; }, 500);
+            document.getElementById('scanner-ui').style.opacity = '1';
+            document.getElementById('scanner-ui').style.pointerEvents = 'all';
+            showMsg("VISIER AKTIVIERT");
+        }
+
+        // --- INVENTORY LOGIC ---
+        function collect(id, icon, el) {
+            if(wasDragged()) return;
+            if(inv.length >= 3) { showMsg("INVENTAR VOLL", true); return; }
+            
+            if(el.parentElement.classList.contains('drawer') || el.parentElement.classList.contains('tube')) {
+                el.parentElement.classList.remove('open');
+            }
+            el.style.display = 'none';
+            
+            inv.push({id: id, icon: icon});
+            updateInvUI();
+            showMsg("ITEM AUFGENOMMEN");
+        }
+
+        function updateInvUI() {
+            for(let i=0; i<3; i++) {
+                let slot = document.getElementById('inv-'+i);
+                slot.innerHTML = '';
+                slot.className = 'inv-slot interact';
+                if(i < inv.length) {
+                    slot.innerText = inv[i].icon;
+                    if(i === selIdx) slot.classList.add('active');
+                }
+            }
+        }
+
+        function selInv(idx) {
+            if(wasDragged() || idx >= inv.length) return;
+            
+            // Double Click Detection -> Inspect 3D
+            if(selIdx === idx) {
+                openInspect(inv[idx].id);
+                selIdx = -1;
+                updateInvUI();
+                return;
+            }
+
+            // Combine
+            if(selIdx !== -1 && selIdx !== idx) {
+                let id1 = inv[selIdx].id;
+                let id2 = inv[idx].id;
+                
+                if((id1==='emitter' && id2==='crystal') || (id1==='crystal' && id2==='emitter')) {
+                    if(!state.synthUnlocked) {
+                        showMsg("SYNTHESE GESPERRT - CODE IM DATAPAD ERFORDERLICH", true);
+                        selIdx = -1; updateInvUI();
+                        return;
+                    }
+                    inv = inv.filter((_, i) => i !== selIdx && i !== idx);
+                    inv.push({id: 'laser', icon: '🔫'}); 
+                    selIdx = -1;
+                    updateInvUI();
+                    showMsg("SYNTHESE ERFOLGREICH: LASER");
+                    return;
+                }
+            }
+            selIdx = idx; 
+            updateInvUI();
+        }
+
+        function useTool(reqId, targetId) {
+            if(wasDragged()) return;
+            if(selIdx === -1) { showMsg("KEIN WERKZEUG GEWÄHLT", true); return; }
+            
+            if(inv[selIdx].id !== reqId) {
+                showMsg("FALSCHES WERKZEUG", true); 
+                return; 
+            }
+            
+            if(targetId === 'power-cover') {
+                document.getElementById('power-cover').classList.add('removed');
+                showMsg("MAGNETISCHE VERRIEGELUNG GELÖST");
+                selIdx = -1; updateInvUI(); 
+            }
+            else if(targetId === 'fuse-port') {
+                document.getElementById('fuse-port').innerText = '🔌';
+                document.getElementById('fuse-port').style.borderColor = "var(--neon-green)";
+                document.getElementById('fuse-port').style.color = "var(--neon-green)";
+                document.getElementById('fuse-port').style.fontSize = "24px"; 
+                inv.splice(selIdx, 1); selIdx = -1; updateInvUI(); 
+                fuseInserted = true;
+                checkPower();
+            }
+            else if(targetId === 'right-clue') {
+                document.getElementById('right-clue').innerText = "AMP = 180°";
+                document.getElementById('right-clue').style.color = "var(--neon-blue)";
+                showMsg("SCHABLONE ANGEWENDET");
+                inv.splice(selIdx, 1); selIdx = -1; updateInvUI();
+            }
+            else if(targetId === 'glass') {
+                let line = document.getElementById('laser-line');
+                line.style.width = '100%';
+                setTimeout(() => {
+                    document.getElementById('glass').classList.add('cut');
+                    showMsg("PANZERGLAS ENTFERNT");
+                }, 2000);
+            }
+        }
+
+        // --- 3D ITEM INSPECTION MODAL ---
+        let inspDrag = false, inspStartX, inspCurY = 0;
+        
+        function openInspect(id) {
+            const m = document.getElementById('inspect-modal');
+            const obj = document.getElementById('inspect-obj');
+            
+            let title = "INSPEKTION";
+            let frontText = "";
+            let backText = "";
+
+            switch(id) {
+                case 'magnet':
+                    title = "MAGNET"; frontText = "🧲";
+                    backText = !state.magnetInspected ? `<div class="diode-part" onclick="extractDiode(event)">💡</div>` : `<div style="color:#555; font-size:10px;">SLOT LEER</div>`;
+                    break;
+                case 'fuse':
+                    title = "SICHERUNG"; frontText = "🔌";
+                    backText = `<div style="font-size:10px; text-align:center; color:#ff2a00;">WARNUNG<br>GRID<br>DEFEKT</div>`;
+                    break;
+                case 'crystal':
+                    title = "KRISTALL"; frontText = "💎";
+                    backText = `<div style="font-size:12px; text-align:center; color:var(--neon-blue); font-weight:bold;">INDEX:<br>÷ 90</div>`;
+                    break;
+                case 'emitter':
+                    title = "EMITTER"; frontText = "🔦";
+                    backText = `<div style="font-size:10px; text-align:center; color:#ff8c00;">REQ:<br>OVERCLOCK</div>`;
+                    break;
+                case 'stencil':
+                    title = "FOLIE"; frontText = "📑";
+                    backText = `<div style="font-size:10px; text-align:center; color:#555;">OPTISCHER<br>FILTER</div>`;
+                    break;
+                case 'diode':
+                    title = "UV-DIODE"; frontText = "💡";
+                    backText = `<div style="font-size:12px; text-align:center; color:var(--neon-purple);">UV<br>395nm</div>`;
+                    break;
+                case 'laser':
+                    title = "LASER"; frontText = "🔫";
+                    // HIER IST DER FIX: Die Info vom Kristall bleibt auf dem Laser erhalten!
+                    backText = `<div style="font-size:10px; text-align:center; color:var(--neon-green); font-weight:bold;">SYS: AUTH OK<br><br><span style="color:var(--neon-blue);">KRISTALL:<br>÷ 90</span></div>`;
+                    break;
+            }
+
+            document.getElementById('inspect-name').innerText = title;
+            obj.innerHTML = `
+                <div class="obj-face obj-front">${frontText}</div>
+                <div class="obj-face obj-back">${backText}</div>
+                <div class="obj-face obj-left"></div><div class="obj-face obj-right"></div>
+                <div class="obj-face obj-top"></div><div class="obj-face obj-bottom"></div>
+            `;
+            
+            inspCurY = 0;
+            obj.style.transform = `rotateX(-15deg) rotateY(0deg)`;
+            m.style.display = 'flex';
+        }
+
+        function extractDiode(e) {
+            e.stopPropagation(); 
+            if(state.magnetInspected) return;
+            state.magnetInspected = true;
+            if(inv.length >= 3) { showMsg("INVENTAR VOLL!", true); return; }
+            
+            document.querySelector('.diode-part').parentElement.innerHTML = `<div style="color:#555; font-size:10px;">SLOT LEER</div>`;
+            inv.push({id: 'diode', icon: '💡'});
+            updateInvUI();
+            showMsg("UV-DIODE AUSGEBAUT");
+        }
+
+        function closeInspect() { document.getElementById('inspect-modal').style.display = 'none'; }
+
+        document.getElementById('inspect-scene').addEventListener('pointerdown', (e) => { 
+            if(e.target.closest('.diode-part')) return;
+            inspDrag = true; inspStartX = e.clientX; 
+        });
+        document.getElementById('inspect-scene').addEventListener('pointermove', (e) => {
+            if(!inspDrag) return;
+            inspCurY += (e.clientX - inspStartX) * 0.8;
+            document.getElementById('inspect-obj').style.transform = `rotateX(-15deg) rotateY(${inspCurY}deg)`;
+            inspStartX = e.clientX;
+        });
+        document.addEventListener('pointerup', () => { inspDrag = false; });
+
+        // --- DATAPAD MODAL ---
+        function toggleManual() {
+            if(wasDragged()) return;
+            let m = document.getElementById('datapad-modal');
+            m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function authSynth() {
+            let pin = document.getElementById('synth-pin').value;
+            if(pin === "519") {
+                state.synthUnlocked = true;
+                let status = document.getElementById('synth-status');
+                status.innerText = "STATUS: AUTORISIERT";
+                status.style.color = "var(--neon-green)";
+                document.getElementById('synth-pin').disabled = true;
+                showMsg("SYNTHESE FREIGEGEBEN");
+            } else {
+                showMsg("CODE INKORREKT", true);
+            }
+        }
+
+        // --- PUZZLE 1: ALGORITHMIC POWER GRID ---
+        let fuseInserted = false;
+        let gridState = new Array(16).fill(0);
+        
+        // Defekte Knoten: 1, 5, 10 und 11
+        const blockedNodes = [1, 5, 10, 11]; 
+        
+        function buildPowerGrid() {
+            let p = document.getElementById('grid');
+            for(let i=0; i<16; i++) {
+                let n = document.createElement('div');
+                n.className = 'node interact';
+                if(i===0) n.classList.add('source');
+                if(i===15) n.classList.add('target');
+                if(blockedNodes.includes(i)) n.classList.add('grid-damaged');
+
+                n.onclick = () => {
+                    if(wasDragged() || state.power) return;
+                    if(!fuseInserted) { showMsg("STROMKREIS UNTERBROCHEN (SICHERUNG FEHLT)", true); return; }
+                    
+                    if(blockedNodes.includes(i)) {
+                        showMsg("KURZSCHLUSS: DEFEKTER KNOTEN BERÜHRT!", true);
+                        cube.style.filter = "hue-rotate(90deg) contrast(200%)";
+                        setTimeout(() => cube.style.filter = "none", 300);
+
+                        n.style.background = "#ff2a00";
+                        n.style.boxShadow = "0 0 15px #ff2a00";
+                        setTimeout(() => {
+                            gridState.fill(0);
+                            document.querySelectorAll('#grid .node').forEach(el => {
+                                el.classList.remove('active');
+                                el.style.background = "";
+                                el.style.boxShadow = "";
+                            });
+                        }, 800);
+                        return;
+                    }
+
+                    gridState[i] = 1 - gridState[i];
+                    if(gridState[i]) n.classList.add('active'); else n.classList.remove('active');
+                    checkPower();
+                };
+                p.appendChild(n);
+            }
+        }
+
+        function isContiguousPath() {
+            if(!gridState[0] || !gridState[15]) return false;
+            let visited = new Set();
+            let q = [0];
+            visited.add(0);
+
+            while(q.length > 0) {
+                let curr = q.shift();
+                let neighbors = [];
+                if(curr % 4 !== 0) neighbors.push(curr - 1); 
+                if(curr % 4 !== 3) neighbors.push(curr + 1); 
+                if(curr >= 4) neighbors.push(curr - 4); 
+                if(curr < 12) neighbors.push(curr + 4); 
+
+                for(let n of neighbors) {
+                    if(gridState[n] && !visited.has(n)) {
+                        visited.add(n);
+                        q.push(n);
+                    }
+                }
+            }
+            let activeCount = gridState.filter(x => x === 1).length;
+            return visited.has(15) && visited.size === activeCount;
+        }
+
+        function checkPower() {
+            if(!fuseInserted) return;
+            if(isContiguousPath()) {
+                state.power = true;
+                showMsg("SYSTEM ENERGIE HERGESTELLT");
+                document.getElementById('grid').style.pointerEvents = 'none';
+                document.querySelectorAll('.uv-hide, .ir-hide').forEach(el => el.classList.remove('stealth'));
+            }
+        }
+
+        // --- PUZZLE 2: RADIAL SEQUENCE LOCK ---
+        const radialSol = [2, 5, 0, 4, 1, 3];
+        let radialInput = [];
+
+        function pressRadial(idx) {
+            if(wasDragged() || state.radialSolved) return;
+            if(!state.power) { showMsg("FEHLER: KEIN STROM", true); return; }
+            
+            let btns = document.querySelectorAll('#radial-keypad .c-btn');
+            let btnEl = (idx === -1) ? btns[0] : btns[idx + 1];
+            btnEl.classList.add('pressed');
+            setTimeout(()=>btnEl.classList.remove('pressed'), 150);
+
+            if(idx === -1) {
+                radialInput = [];
+                showMsg("SEQUENZ ZURÜCKGESETZT");
+                return;
+            }
+
+            radialInput.push(idx);
+            let step = radialInput.length - 1;
+
+            if(radialInput[step] !== radialSol[step]) {
+                showMsg("FEHLER: FALSCHE SEQUENZ", true);
+                radialInput = [];
+            } else if(radialInput.length === 6) {
+                state.radialSolved = true;
+                showMsg("SICHERHEITSSTUFE 2 ENTSPERRT");
+                document.getElementById('draw-stencil').classList.remove('stealth');
+                setTimeout(() => { document.getElementById('draw-stencil').classList.add('open'); }, 500);
+            }
+        }
+
+        // --- PUZZLE 3: ROTARY DIALS (MATH) ---
+        let dialState = [0,0,0];
+        const dialSol = [2, 1, 3];
+        
+        function turnDial(id) {
+            if(wasDragged() || state.dialSolved) return;
+            if(!state.power) { showMsg("FEHLER: KEIN STROM", true); return; }
+            
+            dialState[id] = (dialState[id] + 1) % 4;
+            let deg = dialState[id] * 90;
+            document.getElementById('dial-'+id).style.transform = `rotate(${deg}deg)`;
+
+            if(dialState.join('') === dialSol.join('')) {
+                state.dialSolved = true;
+                showMsg("WELLENFORM SYNCHRONISIERT");
+                document.getElementById('draw-crystal').classList.remove('stealth');
+                setTimeout(() => { document.getElementById('draw-crystal').classList.add('open'); }, 500);
+            }
+        }
+
+        // --- PUZZLE 4: CIPHER RINGS (Deduktion) ---
+        let rings = [0,0,0,0];
+        const ringSol = [4,7,6,2];
+        
+        function turnRing(id) {
+            if(wasDragged()) return;
+            let glass = document.getElementById('glass');
+            if(!glass.classList.contains('cut')) { showMsg("PANZERGLAS BLOCKIERT DREHUNG", true); return; }
+            
+            rings[id] = (rings[id] + 1) % 10;
+            document.getElementById('r'+id).innerText = rings[id];
+            
+            checkRings();
+        }
+
+        function checkRings() {
+            if(rings.join('') === ringSol.join('')) {
+                showMsg("MASTER-PIN AKZEPTIERT. KERN ENTSPERRT.", false);
+                document.getElementById('rings').style.pointerEvents = 'none';
+                setTimeout(() => { triggerWin(false); }, 1500);
+            }
+        }
+
+        // --- FINAL WIN SEQUENCE ---
+        function triggerWin(skipAnim) {
+            localStorage.setItem('aeon_solved', 'true');
+            let t = document.getElementById('face-top');
+            t.classList.add('open');
+            
+            let core = document.getElementById('core-display');
+            core.style.opacity = '1';
+            
+            let decoded = decodeURIComponent(escape(window.atob(SECRET_COORDS)));
+            document.getElementById('final-coords').innerText = decoded;
+            
+            if(!skipAnim) {
+                setTimeout(() => { document.getElementById('final-screen').classList.add('active'); }, 3000);
+            } else {
+                document.getElementById('glass').classList.add('cut');
+                core.style.transition = '0s';
+                document.getElementById('final-screen').classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>
