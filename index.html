@@ -43,7 +43,7 @@
         #notify.err { color: var(--neon-red); border-color: var(--neon-red); background: rgba(255,42,0,0.1); box-shadow: 0 0 15px rgba(255,42,0,0.3); }
 
         /* --- SCANNER UI (Left) --- */
-        #scanner-ui { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 1000; opacity: 0; transition: 0.5s; pointer-events: none;}
+        #scanner-ui { position: absolute; left: 15px; top: 30px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; opacity: 0; transition: 0.5s; pointer-events: none;}
         .scan-btn { width: 50px; height: 50px; border: 2px solid #333; background: #0a0e13; color: #555; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.3s; }
         .scan-btn.active.vis { border-color: #fff; color: #fff; box-shadow: 0 0 15px #fff; }
         .scan-btn.active.uv { border-color: var(--neon-purple); color: var(--neon-purple); box-shadow: 0 0 15px var(--neon-purple); text-shadow: 0 0 5px var(--neon-purple);}
@@ -51,7 +51,7 @@
         .scan-btn.disabled { opacity: 0.4; border-style: dashed; border-color: #444; color: #444; }
 
         /* --- INVENTORY & DATAPAD UI (Right) --- */
-        #right-ui { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
+        #right-ui { position: absolute; right: 15px; top: 30px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
         .inv-hint { font-size: 9px; color: var(--neon-blue); text-align: center; letter-spacing: 1px; margin-bottom: 5px; opacity: 0.8;}
         .inv-slot { width: 50px; height: 50px; border: 1px solid #333; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; font-size: 24px; cursor: pointer; transition: 0.2s; border-radius: 4px; position: relative;}
         .inv-slot.active { border-color: var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue); background: rgba(0,229,255,0.1); transform: scale(1.1); z-index: 10;}
